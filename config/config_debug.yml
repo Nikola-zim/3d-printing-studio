@@ -1,0 +1,32 @@
+app:
+  name: 'exchangeRates'
+  version: '0.0.1'
+  location: 'Europe/Moscow'
+
+http:
+  release_mod: 2
+  port: '8080'
+
+log:
+  path:
+  max_size_bytes: 0
+  max_age_hours: 24
+  max_backups: 16
+  compress: false
+  level: debug
+
+postgres:
+  type: pg
+  pg_url: localhost:5432
+  user: user
+  password: pass
+  db: postgres
+  pool_max: 2
+
+collector:
+  collector_main_url: 'https://www.cbr.ru/scripts/XML_daily.asp'
+  expiration_time: 24h
+  update_after_time: 18
+  update_interval: 6s
+  history_depth: 5820h
+
