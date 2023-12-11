@@ -2,53 +2,23 @@
 package app
 
 import (
-	"context"
 	"github.com/Nikola-zim/3d-printing-studio/config"
+	v0 "github.com/Nikola-zim/3d-printing-studio/internal/controller/http/v0"
+	"github.com/Nikola-zim/3d-printing-studio/internal/usecase"
+	"github.com/Nikola-zim/3d-printing-studio/pkg/httpserver"
+	"github.com/gin-gonic/gin"
 	"github.com/rs/zerolog"
-	"github.com/rs/zerolog/log"
 	"os"
 	"os/signal"
 	"syscall"
-
-	"github.com/gin-gonic/gin"
 )
 
 const (
-	ReleaseModTrue  = 1
-	ReleaseModFalse = 2
+	ReleaseModTrue = 1
 )
 
 // Run creates objects via constructors.
-func Run(ctx context.Context, cfg *config.Config, logger zerolog.Logger) {
-	// Миграции
-	Migrate(cfg.PG.URL, cfg.PG.DatabaseName, cfg.PG.User, cfg.PG.Password)
-
-	// Postgres
-	pg, err := postgres.New(cfg.PG.URL, cfg.PG.DatabaseName, cfg.PG.User, cfg.PG.Password, postgres.MaxPoolSize(cfg.PG.PoolMax))
-	//
-	if err != nil {
-		log.Fatal().Err(err).Msg("app - Run - postgres.New")
-	}
-	defer pg.Close()
-
-	// Use case для работы с БД
-	repoPG := repo.New(pg, log)
-
-	exchangeRatesUseCase := usecase.New(
-		log,
-		repoPG,
-	)
-	// ExchangeRatesCollector - сборщик данных о курсе валют
-	exchangeRatesCollector := collector.NewWorker(
-		log,
-		repoPG,
-		cfg.Location,
-		collector.MainSourceURL(cfg.Collector.URL),
-		collector.UpdateInterval(cfg.Collector.UpdateInterval),
-		collector.UpdateAfterTime(cfg.Collector.UpdateAfterTime),
-		collector.HistoryDepth(cfg.Collector.HistoryDepth),
-	)
-
+func Run(cfg config.Config, log zerolog.Logger) {
 	// HTTP Server
 	if cfg.ReleaseMod == ReleaseModTrue {
 		gin.SetMode(gin.ReleaseMode)
@@ -56,14 +26,18 @@ func Run(ctx context.Context, cfg *config.Config, logger zerolog.Logger) {
 		gin.SetMode(gin.DebugMode)
 	}
 
+	//ordersManager usecase
+	orderManager := usecase.NewOrderManager()
+
 	handler := gin.New()
-	http.NewRouter(handler, log, exchangeRatesUseCase)
+	v0.NewRouter(handler, log, *orderManager)
 	httpServer := httpserver.New(handler, httpserver.Port(cfg.HTTP.Port))
 
 	// Waiting signal
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
+	var err error
 	select {
 	case s := <-interrupt:
 		log.Info().Msg("app - Run - signal: " + s.String())

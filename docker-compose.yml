@@ -1,0 +1,20 @@
+version: '3.3'
+services:
+  postgres:
+    container_name: pgNikolaZim
+    image: postgres:14.3
+    volumes:
+      - pg-data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: 'nikolazim'
+      POSTGRES_PASSWORD: 'nikolazim'
+      POSTGRES_DB: 'studio'
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - 5432:5432
+volumes:
+  pg-data:
